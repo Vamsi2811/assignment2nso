@@ -7,4 +7,4 @@ devC ansible_host=91.106.198.109 ansible_user=ubuntu
 Bastion ansible_host=91.106.198.126 ansible_user=ubuntu
 
 [HAproxyserver]
-HAproxy ansible_host=91.106.198.210 ansible_user=ubuntu
+haproxy ansible_host=91.106.198.210 ansible_user=ubuntu
