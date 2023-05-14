@@ -13,7 +13,7 @@
         autoremove: yes
         autoclean: yes
 #installs and configures haproxy
-- hosts: haproxy
+- hosts: HAproxy
   become: yes
   become_method: sudo
   tasks:
