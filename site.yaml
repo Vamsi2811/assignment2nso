@@ -1,83 +1,143 @@
-
 - hosts: all
   gather_facts: yes
+
+- name: Configuring HAproxy
+  hosts: HAproxy
   become: yes
   tasks:
-    - name: Update package cache
-      apt:
-        update_cache: yes
-
-    - name: Upgrade packages
-      apt:
-        upgrade: yes
-        autoremove: yes
-        autoclean: yes
-#installs and configures haproxy
-- hosts: HAproxy
-  become: yes
-  become_method: sudo
-  tasks:
-    - name: HAproxy Update
-      apt:
-        update_cache: yes
-
-    - name: Install HAproxy
+    - name: installing HAproxy
       apt:
         name: haproxy
+        update_cache: yes
         state: latest
 
-    - name: Configure HAproxy
+    - name: HAproxy configuration for load balance
       template:
         src: haproxy.cfg.j2
-        dest: /etc/haproxy/haproxy.cfg.j2
- 
-    - name: Restart HAproxy
-      become: yes
+        dest: /etc/haproxy/haproxy.cfg
+
+    - name: haproxy restart
       service:
-        name: haproxy
+        name: "haproxy"
         state: restarted
 
-# Deploys and tests the flask app on webservers
-- hosts: webservers
-  become: yes
-  become_method: sudo
-  tasks:
+    - name: Installing Nginx for UDP services
+      apt:
+        name: nginx
+        update_cache: yes
+        state: latest
 
-    - name: Webservers update
+    - name: Configuring the Nginx UDP port
+      template:
+        src: nginxport.conf
+        dest: /etc/nginx/sites-available/default
+
+    - name: Nginx configuration for UDP Load Balancing
+      template:
+        src: nginxudp.conf
+        dest: /etc/nginx/nginx.conf
+
+    - name: Restarting Nginx
+      service:
+        name: nginx
+        state: restarted
+
+- name: Web Server configuration
+  hosts: webservers
+  become: yes
+
+  tasks:
+    - name: Update_the_packages
       apt:
         update_cache: yes
 
-    - name: install python3-pip
+    - name: Installing NGINX and Flask packages
+      apt:
+        name: ['nginx', 'python3-flask']  # Update with the appropriate package names
+        state: present
+
+
+    - name: install nginx
+      apt:
+        name: nginx
+        state: latest
+
+
+    - name: pip3 installation #python installation using pip3
       apt:
         name: python3-pip
         state: latest
-        update_cache: yes
+        update_cache: true
 
-    - name: flask installation
+    - name: Installing flask #flask app installation
       pip:
+        executable: pip3
         name: flask
         state: latest
 
-    - name: install Gunicorn
+    - name: apt update
       apt:
-        name: gunicorn
+        update_cache: true
 
-    - name: copy the flask app code to the servers
+    - name: gunicorn installation #gunicorn installation for gateway interface installation
+      pip:
+        executable: pip3
+        name: gunicorn
+        state: latest
+
+    - name: apt update
+      apt:
+        update_cache: true
+    - name: copy flask app code  #copying the code from app.py to flask app
       copy:
-        src:  /$PWD/application2.py
+        src: /$PWD/application2.py
         dest: /home/ubuntu/application2.py
         owner: ubuntu
         mode: '0644'
-           
-    - name: execute the flask-app deployment
-      shell: gunicorn -w 2 -D -b 0.0.0.0:8080 application2:app
- 
-- hosts: HAproxy
-  become: yes
-  become_method: sudo
-  tasks:       
-    - name: Restart HAproxy
-      become: yes
+
+    - name: Running Flask application #Execute the flask app
+      shell: gunicorn -w 2 -D -b 0.0.0.0:5000 application2:app
+
+    - name: Installing the SNMPd
+      apt:
+        name: snmpd
+        state: latest
+        update_cache: true
+
+    - name: Configuring snmpd
+      template:
+          src: snmpd.conf
+          dest: /etc/snmp/snmpd.conf
+
+    - name: Restarting snmpd
       service:
-            name: haproxy
-            state: restarted
+        name: snmpd
+        state: restarted
+
+- name: Testing
+  hosts: HAproxy
+  become: yes
+
+  tasks:
+    - name: Testing the HAproxy load balancing 1st time.
+      shell: "curl localhost"
+
+      register: "output"
+      args:
+        warn: false
+    - debug: var=output.stdout
+
+    - name: Testing the HAproxy load balancing 2nd time.
+      shell: "curl localhost"
+      register: "output"
+      args:
+        warn: false
+    - debug: var=output.stdout
+
+    - name: Testing the HAproxy load balancing 3rd time.
+      shell: "curl localhost"
+      register: "output"
+      args:
+        warn: false
+    - debug: var=output.stdout
+
