@@ -133,7 +133,7 @@
       apt:
         update_cache: true
 
-        - name: Configure HAproxy for performance UI
+- name: Configure HAproxy for performance UI
   hosts: HAproxy
   become: yes
   tasks:
