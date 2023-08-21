@@ -151,7 +151,13 @@
         haproxy_username: "{{ password_file_content.stdout_lines[0].split(':')[0] }}"
         haproxy_password: "{{ password_file_content.stdout_lines[0].split(':')[1] }}"
         
-    - name: Edit HAproxy configuration
+    - name: Check if password has changed
+      vars:
+        current_password: "{{ lookup('file', 'uipassword', errors='ignore') }}"
+      set_fact:
+        password_changed: "{{ haproxy_password != current_password }}"
+        
+    - name: Apply new password if changed
       blockinfile:
         path: /etc/haproxy/haproxy.cfg
         block: |
@@ -162,10 +168,12 @@
             stats uri /stats
             stats refresh 1s
             stats auth {{ haproxy_username }}:{{ haproxy_password }}
-      when: haproxy_username is defined and haproxy_password is defined
+      when: password_changed
 
     - name: Restart haproxy
       service:
         name: haproxy
         state: restarted
+      when: password_changed
+
       
